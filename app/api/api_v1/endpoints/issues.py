@@ -717,7 +717,7 @@ async def read_issue_with_photo(
         
         issue_data = Issue.model_validate(issue).model_dump()
         
-        # Add base64 encoded photo data if available
+        # First try to get photo from database if available
         if issue.photo_data:
             try:
                 # Encode photo data to base64
@@ -726,6 +726,37 @@ async def read_issue_with_photo(
                 print(f"DEBUG: Successfully encoded photo data to base64 string of length {len(base64_data)}")
             except Exception as e:
                 print(f"ERROR encoding photo data to base64: {str(e)}")
+                # Don't fail the request, just don't include the photo data
+                issue_data["photo_data_base64"] = None
+        
+        # If no photo data in the database, try to read from disk if we have a photo_path
+        elif issue.photo_path:
+            try:
+                from pathlib import Path
+                from app.utils.image_utils import get_full_image_path
+                import os
+                
+                # Construct the full path to the image file
+                file_path = get_full_image_path(issue.photo_path)
+                
+                print(f"DEBUG: Attempting to read image file from: {file_path}")
+                
+                # Check if the file exists
+                if os.path.exists(file_path):
+                    with open(file_path, "rb") as f:
+                        file_content = f.read()
+                    
+                    # Encode file content to base64
+                    base64_data = base64.b64encode(file_content).decode("utf-8")
+                    issue_data["photo_data_base64"] = base64_data
+                    print(f"DEBUG: Successfully read image file from disk and encoded to base64: {len(base64_data)} chars")
+                else:
+                    print(f"DEBUG: Image file not found at path: {file_path}")
+                    issue_data["photo_data_base64"] = None
+            except Exception as e:
+                print(f"ERROR reading image file from disk: {str(e)}")
+                import traceback
+                traceback.print_exc()
                 # Don't fail the request, just don't include the photo data
                 issue_data["photo_data_base64"] = None
         

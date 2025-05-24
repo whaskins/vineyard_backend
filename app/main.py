@@ -26,12 +26,17 @@ app = FastAPI(
 
 # Set all CORS enabled origins
 if settings.BACKEND_CORS_ORIGINS:
+    # Log the CORS origins for debugging
+    logger.info(f"Configuring CORS with origins: {settings.BACKEND_CORS_ORIGINS}")
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[str(origin) for origin in settings.BACKEND_CORS_ORIGINS],
+        allow_origins=settings.BACKEND_CORS_ORIGINS,
+        allow_origin_regex=r"https?://.*\.abqwebdev\.com(:[0-9]+)?",  # Allow all subdomains of abqwebdev.com with optional port
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+        allow_headers=["Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With"],
+        expose_headers=["Content-Length"],
+        max_age=600,  # Cache preflight requests for 10 minutes
     )
 
 # Include API router

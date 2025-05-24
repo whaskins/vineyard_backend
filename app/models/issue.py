@@ -11,7 +11,8 @@ class VineIssue(Base):
     __tablename__ = "vine_issues"  # Explicitly set the table name to match the database
     
     id = Column("issue_id", Integer, primary_key=True, index=True)
-    vine_id = Column(Integer, ForeignKey("vine_inventory.vine_id", ondelete="CASCADE"), nullable=False)
+    vine_id = Column(Integer, ForeignKey("vines.vine_id", ondelete="CASCADE"), nullable=True)  # Keep for backward compatibility
+    vine_location_id = Column(Integer, ForeignKey("vine_locations.location_id", ondelete="CASCADE"), nullable=True)
     description = Column("issue_description", Text, nullable=False)
     # Path to the stored image file - we'll use this for the relative path to the image
     photo_path = Column(String, nullable=True)
@@ -29,6 +30,7 @@ class VineIssue(Base):
     
     # Relationships
     vine = relationship("Vine", backref=backref("issues", cascade="all, delete-orphan"))
+    vine_location = relationship("VineLocation", backref=backref("issues", cascade="all, delete-orphan"))
     reporter = relationship("User", foreign_keys=[reported_by], backref=backref("reported_issues"))
     resolver = relationship("User", foreign_keys=[resolved_by], backref=backref("resolved_issues"))
     

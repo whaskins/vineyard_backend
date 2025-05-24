@@ -17,15 +17,22 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 43200  # 30 days
     
     # CORS
-    BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = []
+    BACKEND_CORS_ORIGINS: List[str] = []
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
-    def assemble_cors_origins(cls, v: Union[str, List[str]]) -> Union[List[str], str]:
+    def assemble_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:
         if isinstance(v, str) and not v.startswith("["):
             return [i.strip() for i in v.split(",")]
-        elif isinstance(v, (list, str)):
+        elif isinstance(v, str):
+            # Handle string that looks like a JSON array
+            try:
+                import json
+                return json.loads(v)
+            except json.JSONDecodeError:
+                return [v]
+        elif isinstance(v, list):
             return v
-        raise ValueError(v)
+        raise ValueError(f"Invalid CORS origins format: {v}")
 
     # Database
     DATABASE_URL: PostgresDsn

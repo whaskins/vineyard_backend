@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   api:
-    image: 283282846400.dkr.ecr.us-east-1.amazonaws.com/vineyard/backend:1.27
+    image: 283282846400.dkr.ecr.us-east-1.amazonaws.com/vineyard/backend:1.37
     platform: linux/amd64
     ports:
       - "8080:8080"

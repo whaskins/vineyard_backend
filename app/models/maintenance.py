@@ -19,7 +19,8 @@ class MaintenanceActivity(Base):
     __tablename__ = "maintenance_activities"  # Explicitly set the table name to match the database
     
     id = Column("activity_id", Integer, primary_key=True, index=True)
-    vine_id = Column(Integer, ForeignKey("vine_inventory.vine_id", ondelete="CASCADE"), nullable=False)
+    vine_id = Column(Integer, ForeignKey("vines.vine_id", ondelete="CASCADE"), nullable=True)  # Keep for backward compatibility
+    vine_location_id = Column(Integer, ForeignKey("vine_locations.location_id", ondelete="CASCADE"), nullable=True)
     type_id = Column(Integer, ForeignKey("maintenance_types.type_id", ondelete="CASCADE"), nullable=False)
     activity_date = Column(DateTime, nullable=False)
     notes = Column(Text, nullable=True)
@@ -28,4 +29,5 @@ class MaintenanceActivity(Base):
     
     # Relationships
     vine = relationship("Vine", backref=backref("maintenance_activities", cascade="all, delete-orphan"))
+    vine_location = relationship("VineLocation", backref=backref("maintenance_activities", cascade="all, delete-orphan"))
     type = relationship("MaintenanceType", backref=backref("activities"))

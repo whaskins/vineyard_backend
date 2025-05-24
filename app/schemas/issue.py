@@ -15,7 +15,8 @@ from fastapi import UploadFile, Form
 
 
 class IssueBase(BaseModel):
-    vine_id: int
+    vine_id: Optional[int] = None  # Keep for backward compatibility
+    vine_location_id: Optional[int] = None  # New primary foreign key
     description: str
     # Photo storage fields
     photo_path: Optional[str] = None  # Path to the image file
@@ -172,15 +173,17 @@ class IssueWithPhoto(Issue):
 class IssueCreateForm:
     def __init__(
         self,
-        vine_id: int = Form(...),
         description: str = Form(...),
         reported_by: int = Form(...),
+        vine_id: Optional[int] = Form(None),
+        vine_location_id: Optional[int] = Form(None),
         is_resolved: bool = Form(False),
         photo: Optional[UploadFile] = None,
         resolved_by: Optional[int] = Form(None),
         date_resolved: Optional[datetime] = Form(None),
     ):
         self.vine_id = vine_id
+        self.vine_location_id = vine_location_id
         self.description = description
         self.reported_by = reported_by
         self.is_resolved = is_resolved

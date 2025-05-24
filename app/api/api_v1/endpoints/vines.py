@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api import deps
 from app.crud import crud_vine
 from app.models.user import User
-from app.schemas.vine import Vine, VineCreate, VineSearchParams, VineUpdate
+from app.schemas.vine import Vine, VineCreate, VineSearchParams, VineUpdate, VineLocation, VineLocationCreate, VineLocationUpdate
 
 router = APIRouter()
 
@@ -15,13 +15,13 @@ router = APIRouter()
 async def read_vines(
     db: AsyncSession = Depends(deps.get_db),
     skip: int = 0,
-    limit: int = 100,
+    limit: int = Query(100, le=1000),
     current_user: User = Depends(deps.get_current_active_user),
 ) -> Any:
     """
     Retrieve all vines.
     """
-    vines = await crud_vine.vine.get_multi(db, skip=skip, limit=limit)
+    vines = await crud_vine.vine.get_multi_with_locations(db, skip=skip, limit=limit)
     return vines
 
 
@@ -55,13 +55,14 @@ async def create_vine(
     """
     Create new vine.
     """
-    # Check if vine with this ID already exists
-    existing_vine = await crud_vine.vine.get_by_alpha_id(db, alpha_id=vine_in.alpha_numeric_id)
-    if existing_vine:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Vine with ID {vine_in.alpha_numeric_id} already exists",
-        )
+    # Check if vine with this ID already exists (only if alpha_numeric_id is provided)
+    if vine_in.alpha_numeric_id:
+        existing_vine = await crud_vine.vine.get_by_alpha_id(db, alpha_id=vine_in.alpha_numeric_id)
+        if existing_vine:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Vine with ID {vine_in.alpha_numeric_id} already exists",
+            )
     vine = await crud_vine.vine.create(db, obj_in=vine_in)
     return vine
 
@@ -118,22 +119,28 @@ async def read_vine_by_alpha_id(
     return vine
 
 
-@router.get("/by-location/{field_name}/{row_number}/{spot_number}", response_model=List[Vine])
-async def read_vine_by_location(
+@router.get("/by-location/{vineyard_name}/{field_name}/{row_number}/{spot_number}", response_model=VineLocation)
+async def read_vine_location(
     *,
     db: AsyncSession = Depends(deps.get_db),
+    vineyard_name: str,
     field_name: str,
     row_number: int,
     spot_number: int,
     current_user: User = Depends(deps.get_current_active_user),
 ) -> Any:
     """
-    Get vines by location (field, row, spot).
+    Get vine location by position (vineyard, field, row, spot).
     """
-    vines = await crud_vine.vine.get_by_location(
-        db, field_name=field_name, row_number=row_number, spot_number=spot_number
+    location = await crud_vine.vine_location.get_by_location(
+        db, vineyard_name=vineyard_name, field_name=field_name, row_number=row_number, spot_number=spot_number
     )
-    return vines
+    if not location:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Vine location not found",
+        )
+    return location
 
 
 @router.put("/{vine_id}", response_model=Vine)
@@ -175,3 +182,92 @@ async def delete_vine(
         )
     vine = await crud_vine.vine.remove(db, id=vine_id)
     return vine
+
+
+# Vine Location endpoints
+@router.post("/locations/", response_model=VineLocation)
+async def create_vine_location(
+    *,
+    db: AsyncSession = Depends(deps.get_db),
+    location_in: VineLocationCreate,
+    current_user: User = Depends(deps.get_current_active_user),
+) -> Any:
+    """
+    Create new vine location.
+    """
+    location = await crud_vine.vine_location.create(db, obj_in=location_in)
+    return location
+
+
+@router.put("/locations/sync", response_model=VineLocation)
+async def sync_vine_location(
+    *,
+    db: AsyncSession = Depends(deps.get_db),
+    location_in: VineLocationCreate,
+    current_user: User = Depends(deps.get_current_active_user),
+) -> Any:
+    """
+    Create or update a vine location (for mobile app syncing vines without tags).
+    """
+    location = await crud_vine.vine_location.create_or_update_by_location(db, obj_in=location_in)
+    return location
+
+
+@router.get("/locations/{location_id}", response_model=VineLocation)
+async def read_vine_location_by_id(
+    *,
+    db: AsyncSession = Depends(deps.get_db),
+    location_id: int,
+    current_user: User = Depends(deps.get_current_active_user),
+) -> Any:
+    """
+    Get vine location by ID.
+    """
+    location = await crud_vine.vine_location.get(db, id=location_id)
+    if not location:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Vine location not found",
+        )
+    return location
+
+
+@router.put("/locations/{location_id}", response_model=VineLocation)
+async def update_vine_location(
+    *,
+    db: AsyncSession = Depends(deps.get_db),
+    location_id: int,
+    location_in: VineLocationUpdate,
+    current_user: User = Depends(deps.get_current_active_user),
+) -> Any:
+    """
+    Update a vine location.
+    """
+    location = await crud_vine.vine_location.get(db, id=location_id)
+    if not location:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Vine location not found",
+        )
+    location = await crud_vine.vine_location.update(db, db_obj=location, obj_in=location_in)
+    return location
+
+
+@router.delete("/locations/{location_id}", response_model=VineLocation)
+async def delete_vine_location(
+    *,
+    db: AsyncSession = Depends(deps.get_db),
+    location_id: int,
+    current_user: User = Depends(deps.get_current_active_superuser),
+) -> Any:
+    """
+    Delete a vine location.
+    """
+    location = await crud_vine.vine_location.get(db, id=location_id)
+    if not location:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Vine location not found",
+        )
+    location = await crud_vine.vine_location.remove(db, id=location_id)
+    return location

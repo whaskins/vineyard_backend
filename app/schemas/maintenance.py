@@ -32,7 +32,8 @@ class MaintenanceType(MaintenanceTypeInDBBase):
 
 # Maintenance Activity schemas
 class MaintenanceActivityBase(BaseModel):
-    vine_id: int
+    vine_id: Optional[int] = None  # Keep for backward compatibility
+    vine_location_id: Optional[int] = None  # New primary foreign key
     type_id: int
     activity_date: datetime
     notes: Optional[str] = None
@@ -43,6 +44,8 @@ class MaintenanceActivityCreate(MaintenanceActivityBase):
 
 
 class MaintenanceActivityUpdate(BaseModel):
+    vine_id: Optional[int] = None
+    vine_location_id: Optional[int] = None
     type_id: Optional[int] = None
     activity_date: Optional[datetime] = None
     notes: Optional[str] = None
